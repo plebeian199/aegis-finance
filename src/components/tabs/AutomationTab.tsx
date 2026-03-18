@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Repeat, Clock, ToggleLeft, ToggleRight, ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { addRecurringTemplate, deleteRecurringTemplate, toggleRecurringTemplate } from "@/app/actions";
+import { Plus, Trash2, Repeat, Clock, ToggleLeft, ToggleRight, ArrowDownRight, ArrowUpRight, Edit2, X } from "lucide-react";
+import { addRecurringTemplate, deleteRecurringTemplate, toggleRecurringTemplate, updateRecurringTemplate } from "@/app/actions";
 
 export function AutomationTab({ recurring, accounts, categories }: { recurring: any[], accounts: any[], categories: any[] }) {
   const [desc, setDesc] = useState("");
@@ -19,11 +19,39 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
   const [destId, setDestId] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleEditClick = (rt: any) => {
+    setEditingId(rt.id);
+    setDesc(rt.description);
+    setAmount(rt.amount.toString());
+    setType(rt.transaction_type);
+    setFreq(rt.frequency);
+    setNextDate(rt.next_execution_date);
+    setHasEndDate(!!rt.end_date);
+    setEndDate(rt.end_date || "");
+    setCatId(rt.category_id || "");
+    
+    if (rt.transaction_type === "expense") {
+      setSourceId(rt.source_account_id || "");
+      setDestId("");
+    } else {
+      setSourceId("");
+      setDestId(rt.destination_account_id || "");
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDesc(""); setAmount(""); setNextDate(""); setEndDate(""); setHasEndDate(false);
+    setCatId(""); setSourceId(""); setDestId(""); setType("expense");
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await addRecurringTemplate({
+    
+    const payload = {
       description: desc,
       amount: parseFloat(amount),
       transaction_type: type,
@@ -33,9 +61,15 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
       category_id: catId || null,
       source_account_id: sourceId || null,
       destination_account_id: destId || null,
-      is_active: true
-    });
-    setDesc(""); setAmount(""); setNextDate(""); setEndDate(""); setHasEndDate(false);
+    };
+
+    if (editingId) {
+      await updateRecurringTemplate(editingId, payload);
+    } else {
+      await addRecurringTemplate({ ...payload, is_active: true });
+    }
+    
+    cancelEdit();
     setLoading(false);
   };
 
@@ -56,11 +90,19 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
         {/* Form Container */}
         <div className="lg:col-span-1">
           <div className="bg-zinc-900/40 rounded-3xl border border-white/5 p-6 md:p-8 backdrop-blur-xl">
-            <h2 className="text-white text-lg font-medium tracking-tight mb-6 flex items-center gap-2">
-              <Repeat size={18} className="text-purple-500" /> Automation Engine
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+               <h2 className="text-white text-lg font-medium tracking-tight flex items-center gap-2">
+                 {editingId ? <Edit2 size={18} className="text-blue-500" /> : <Repeat size={18} className="text-purple-500" />}
+                 {editingId ? "Edit Automation" : "Automation Engine"}
+               </h2>
+               {editingId && (
+                 <button onClick={cancelEdit} className="text-zinc-500 hover:text-rose-400 p-1 bg-white/5 rounded-md border border-white/5 transition-colors">
+                   <X size={14}/>
+                 </button>
+               )}
+            </div>
             
-            <form onSubmit={handleAdd} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setType('expense')} className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${type === 'expense' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-black/40 text-zinc-500 border-transparent hover:text-zinc-300'}`}>Pengeluaran</button>
                 <button type="button" onClick={() => setType('income')} className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${type === 'income' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-black/40 text-zinc-500 border-transparent hover:text-zinc-300'}`}>Pemasukan</button>
@@ -120,8 +162,8 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
                 )}
               </div>
 
-              <button disabled={loading} type="submit" className="w-full mt-4 bg-purple-500 text-purple-950 font-medium rounded-xl py-2.5 text-sm hover:bg-purple-400 transition-colors disabled:opacity-50">
-                {loading ? "Menyimpan..." : "Aktifkan Autopilot"}
+              <button disabled={loading} type="submit" className={`w-full mt-4 font-medium rounded-xl py-2.5 text-sm transition-colors disabled:opacity-50 ${editingId ? 'bg-blue-500 text-blue-950 hover:bg-blue-400' : 'bg-purple-500 text-purple-950 hover:bg-purple-400'}`}>
+                {loading ? "Menyimpan..." : (editingId ? "Simpan Perubahan" : "Aktifkan Autopilot")}
               </button>
             </form>
           </div>
@@ -181,11 +223,14 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
                             <span className="text-xs text-blue-300 font-mono flex items-center gap-1.5"><Clock size={12}/> {new Date(rt.next_execution_date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric'})}</span>
                           </td>
                           <td className="py-4 px-2 text-right">
-                             <div className="flex items-center justify-end gap-3">
-                               <button onClick={() => handleToggle(rt.id, rt.is_active)} className={rt.is_active ? 'text-emerald-400' : 'text-zinc-600'}>
-                                  {rt.is_active ? <ToggleRight size={24}/> : <ToggleLeft size={24}/>}
+                             <div className="flex items-center justify-end gap-2">
+                               <button onClick={() => handleToggle(rt.id, rt.is_active)} className={`p-1.5 rounded-md transition-colors ${rt.is_active ? 'text-emerald-400 hover:bg-emerald-400/10' : 'text-zinc-600 hover:text-emerald-400'}`}>
+                                  {rt.is_active ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
                                </button>
-                               <button onClick={() => handleDelete(rt.id)} className="text-zinc-600 hover:text-rose-400 transition-colors">
+                               <button onClick={() => handleEditClick(rt)} className="text-zinc-500 hover:text-blue-400 p-1.5 rounded-md hover:bg-blue-400/10 transition-colors">
+                                 <Edit2 size={16}/>
+                               </button>
+                               <button onClick={() => handleDelete(rt.id)} className="text-zinc-500 hover:text-rose-400 p-1.5 rounded-md hover:bg-rose-400/10 transition-colors">
                                  <Trash2 size={16}/>
                                </button>
                              </div>

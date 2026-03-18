@@ -25,7 +25,6 @@ export function TransactionForm({
   const [sourceId, setSourceId] = useState("");
   const [destinationId, setDestinationId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +41,6 @@ export function TransactionForm({
     formData.append("amount", amountInput.rawValue);
     formData.append("description", description);
     formData.append("transaction_type", type);
-    formData.append("is_recurring", isRecurring.toString());
 
     if (type === "expense") {
       formData.append("source_account_id", sourceId);
@@ -60,7 +58,6 @@ export function TransactionForm({
     setLoading(false);
     amountInput.reset();
     setDescription("");
-    setIsRecurring(false);
     // Keep the date and accounts selected for rapid entry
   };
 
@@ -124,6 +121,7 @@ export function TransactionForm({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+              style={{ colorScheme: 'dark' }}
             />
           </div>
 
@@ -207,23 +205,9 @@ export function TransactionForm({
             </div>
             
             {type !== "transfer" && (
-              <label className="flex items-center gap-3 cursor-pointer group w-fit">
-                <div className="relative flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                    className="sr-only" 
-                  />
-                  <div className={cn("w-10 h-6 bg-black/40 border border-white/10 rounded-full transition-colors flex items-center px-1", isRecurring ? "bg-blue-500/50 border-blue-500/50" : "")}>
-                    <div className={cn("w-4 h-4 bg-zinc-400 rounded-full transition-all transform", isRecurring ? "translate-x-4 bg-white" : "")} />
-                  </div>
-                </div>
-                <div className="select-none">
-                  <p className="text-sm font-medium text-white group-hover:text-blue-200 transition-colors">Pengeluaran/Pemasukan Rutin (Recurring)</p>
-                  <p className="text-xs text-zinc-500">Tandai jika transaksi ini berulang setiap bulan.</p>
-                </div>
-              </label>
+              <div className="text-xs text-zinc-500 italic flex items-center gap-1">
+                💡 Untuk transaksi rutin otomatis, gunakan tab <span className="text-purple-400 font-medium">Automation</span>.
+              </div>
             )}
           </div>
           

@@ -2,12 +2,10 @@
 
 import { HandCoins } from "lucide-react";
 
-export function ZakatCalculator() {
-  // Mock data for calculation
-  const liquidWealth = 135000000; // Kas, Tabungan, Emas, Saham, Reksadana
-  const nisabThreshold = 85000000; // Approx 85g gold
-  const isObligated = liquidWealth >= nisabThreshold;
-  const zakatAmount = isObligated ? liquidWealth * 0.025 : 0;
+export function ZakatCalculator({ liquidAssets }: { liquidAssets: number }) {
+  const nisabThreshold = 85000000; // Approx 85g gold @ current
+  const isObligated = liquidAssets >= nisabThreshold;
+  const zakatAmount = isObligated ? liquidAssets * 0.025 : 0;
 
   return (
     <div className="w-full bg-gradient-to-br from-emerald-900/40 to-green-900/20 rounded-3xl border border-emerald-500/20 backdrop-blur-xl p-8 shadow-2xl relative overflow-hidden mt-8">
@@ -27,7 +25,7 @@ export function ZakatCalculator() {
         <div>
           <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Aset Likuid Tersimpan (Haul 1 Tahun)</p>
           <div className="flex items-baseline gap-2">
-            <span className="text-white text-2xl font-light tracking-tight">Rp {liquidWealth.toLocaleString('id-ID')}</span>
+            <span className="text-white text-2xl font-light tracking-tight">Rp {liquidAssets.toLocaleString('id-ID')}</span>
           </div>
         </div>
 

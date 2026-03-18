@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Target, Plus, Trash2, Check, ExternalLink, Link2, X } from "lucide-react";
+import { Target, Plus, Trash2, Check, ExternalLink, Link2, X, Calculator } from "lucide-react";
 import { addGoal, deleteGoal, assignAccountToGoal } from "@/app/actions";
 
 export function GoalsTab({ goals, accounts }: { goals: any[], accounts: any[] }) {
@@ -113,6 +113,25 @@ export function GoalsTab({ goals, accounts }: { goals: any[], accounts: any[] })
                       </div>
                       <p className="text-right text-[10px] text-amber-500/80 mt-1 font-mono tracking-wider">{progress.toFixed(1)}% TERCAPAI</p>
                     </div>
+
+                    {/* Monthly Contribution Calculator */}
+                    {goal.target_date && currentSaved < goal.target_amount && (() => {
+                      const remaining = goal.target_amount - currentSaved;
+                      const now = new Date();
+                      const target = new Date(goal.target_date);
+                      const monthsLeft = Math.max(1, (target.getFullYear() - now.getFullYear()) * 12 + target.getMonth() - now.getMonth());
+                      const perMonth = Math.ceil(remaining / monthsLeft);
+                      return (
+                        <div className="bg-black/30 rounded-xl p-3 border border-amber-500/10 flex items-start gap-2 mb-2">
+                          <Calculator size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+                          <div>
+                            <p className="text-[10px] text-zinc-500 leading-relaxed">
+                              Butuh <span className="text-amber-400 font-mono font-medium">{formatRp(perMonth)}/bulan</span> selama <span className="text-white font-medium">{monthsLeft} bulan</span> untuk mencapai target.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Account Assignments */}
                     <div className="pt-4 border-t border-white/5">

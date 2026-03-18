@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Filter, ChevronDown, Check, X, Edit2, Loader2, Target, PieChart as PieChartIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, TrendingUp, TrendingDown, Filter, ChevronDown, Check, X, Edit2, Loader2, Target, PieChart as PieChartIcon, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { updateCategoryLimit } from "@/app/actions";
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#f43f5e', '#06b6d4', '#14b8a6', '#f97316'];
@@ -52,6 +52,7 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
 
   const netFlow = income - expense;
   const isPositiveFlow = netFlow >= 0;
+  const savingsRate = income > 0 ? ((income - expense) / income * 100) : 0;
 
   const formatMonth = (ym: string) => {
     const [y, m] = ym.split('-');
@@ -80,6 +81,29 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
     { name: 'Pemasukan', Amount: income, fill: '#10b981' },
     { name: 'Pengeluaran', Amount: expense, fill: '#ef4444' }
   ];
+
+  // Multi-month trend data (last 6 months)
+  const trendData = useMemo(() => {
+    const months: { key: string; label: string; income: number; expense: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('id-ID', { month: 'short' });
+      months.push({ key, label, income: 0, expense: 0 });
+    }
+    transactions.forEach(t => {
+      if (!t.transaction_date) return;
+      const d = new Date(t.transaction_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const found = months.find(m => m.key === key);
+      if (found) {
+        if (t.transaction_type === 'income') found.income += Number(t.amount);
+        else if (t.transaction_type === 'expense') found.expense += Number(t.amount);
+      }
+    });
+    return months;
+  }, [transactions]);
 
   const formatRp = (val: number) => `Rp ${val.toLocaleString('id-ID')}`;
 
@@ -153,7 +177,7 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-10">
         <div className="bg-black/20 rounded-2xl p-5 border border-emerald-500/10 relative overflow-hidden group">
           <div className="absolute -top-2 -right-2 p-4 opacity-10 group-hover:opacity-20 transition-all group-hover:scale-110">
             <ArrowDownRight size={64} className="text-emerald-500" />
@@ -186,6 +210,17 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
           <p className={cn("text-2xl font-mono", isPositiveFlow ? "text-emerald-400" : "text-rose-400")}>
             {isPositiveFlow ? '+' : '-'}{formatRp(Math.abs(netFlow))}
           </p>
+        </div>
+
+        <div className="bg-black/20 rounded-2xl p-5 border border-indigo-500/10 relative overflow-hidden group">
+          <div className="absolute -top-2 -right-2 p-4 opacity-10 group-hover:opacity-20 transition-all group-hover:scale-110">
+            <Percent size={64} className="text-indigo-500" />
+          </div>
+          <p className="text-xs font-semibold text-indigo-400/80 mb-2 uppercase tracking-wider">Savings Rate</p>
+          <p className={cn("text-2xl font-mono", savingsRate >= 30 ? "text-emerald-400" : savingsRate >= 10 ? "text-amber-400" : "text-rose-400")}>
+            {savingsRate.toFixed(1)}%
+          </p>
+          <p className="text-[10px] text-zinc-600 mt-1">Target: ≥30%</p>
         </div>
       </div>
       
@@ -251,6 +286,39 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
           </div>
         </div>
 
+      </div>
+
+      {/* Multi-Month Trend Chart */}
+      <div className="bg-black/20 rounded-3xl p-6 border border-white/5 mb-10">
+        <h3 className="text-zinc-300 text-sm font-medium mb-6 flex items-center gap-2">
+          <TrendingUp size={16} /> Tren Arus Kas 6 Bulan
+        </h3>
+        <div className="h-[220px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff08" />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} dy={10} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ backgroundColor: 'rgba(24, 24, 27, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                formatter={(value: any, name: any) => [formatRp(value), String(name) === 'income' ? 'Pemasukan' : 'Pengeluaran']}
+                labelStyle={{ color: '#a1a1aa' }}
+              />
+              <Area type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
+              <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Budget Progress Bars */}

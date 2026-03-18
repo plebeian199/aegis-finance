@@ -7,7 +7,7 @@ type Snapshot = {
   net_worth: number;
 };
 
-export function NetWorthChart({ data }: { data: Snapshot[] }) {
+export function NetWorthChart({ data, currentNetWorth }: { data: Snapshot[], currentNetWorth: number }) {
   
   // Format the data for the chart
   const chartData = data?.map(d => {
@@ -17,6 +17,20 @@ export function NetWorthChart({ data }: { data: Snapshot[] }) {
       netWorth: Number(d.net_worth)
     };
   }) || [];
+
+  // Sync Live Assets into the Chart
+  const now = new Date();
+  const currentMonthLabel = now.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+
+  if (chartData.length === 0 || chartData[chartData.length - 1].month !== currentMonthLabel) {
+    chartData.push({
+      month: currentMonthLabel,
+      netWorth: currentNetWorth
+    });
+  } else {
+    // Override the latest snapshot with exact live balance
+    chartData[chartData.length - 1].netWorth = currentNetWorth;
+  }
 
   // Calculate MoM and YoY if we have enough data
   let momGrowth = 0;

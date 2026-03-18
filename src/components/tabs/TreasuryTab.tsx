@@ -5,6 +5,8 @@ import { AssetLiabilityForm } from "@/components/forms/AssetLiabilityForm";
 import { AssetTable } from "@/components/tables/AssetTable";
 import { ZakatCalculator } from "@/components/widgets/ZakatCalculator";
 import { SeedSnapshotsButton } from "@/components/widgets/SeedSnapshotsButton";
+import { getFullBackup } from "@/app/actions";
+import { Download } from "lucide-react";
 
 type TreasuryTabProps = {
   currentNetWorth: number;
@@ -35,6 +37,19 @@ export function TreasuryTab({
     return `Rp ${val.toLocaleString('id-ID')}`;
   };
 
+  const handleBackup = async () => {
+    const data = await getFullBackup();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `aegis_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="animate-in fade-in duration-500">
       {/* Massive Top-line Net Worth Metric */}
@@ -51,7 +66,7 @@ export function TreasuryTab({
         {/* Main Chart Column */}
         <div className="lg:col-span-2 space-y-8">
           <div>
-            <NetWorthChart data={snapshotsData} />
+            <NetWorthChart data={snapshotsData} currentNetWorth={currentNetWorth} />
             {!snapshotsData || snapshotsData.length === 0 ? (
               <SeedSnapshotsButton currentNetWorth={currentNetWorth} />
             ) : null}
@@ -95,7 +110,15 @@ export function TreasuryTab({
         {/* Form Column */}
         <div className="space-y-4">
           <AssetLiabilityForm accounts={accountsData as any} />
-          <ZakatCalculator />
+          <ZakatCalculator liquidAssets={liquidAssets} />
+          
+          {/* Data Backup */}
+          <button
+            onClick={handleBackup}
+            className="w-full flex items-center justify-center gap-2 bg-zinc-800/60 border border-white/5 rounded-2xl py-3 text-sm text-zinc-400 hover:text-white hover:bg-zinc-700/60 transition-colors"
+          >
+            <Download size={14}/> Backup Semua Data (JSON)
+          </button>
         </div>
 
       </div>

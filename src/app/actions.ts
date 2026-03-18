@@ -633,6 +633,13 @@ export async function addRecurringTemplate(payload: any) {
   return { success: true };
 }
 
+export async function updateRecurringTemplate(id: string, payload: any) {
+  const { error } = await supabase.from("recurring_transactions").update(payload).eq("id", id);
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function deleteRecurringTemplate(id: string) {
   const { error } = await supabase.from("recurring_transactions").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
@@ -645,4 +652,24 @@ export async function toggleRecurringTemplate(id: string, is_active: boolean) {
   if (error) return { success: false, error: error.message };
   revalidatePath("/");
   return { success: true };
+}
+
+export async function getFullBackup() {
+  const [accounts, transactions, snapshots, categories, goals, recurring] = await Promise.all([
+    supabase.from("accounts").select("*"),
+    supabase.from("transactions").select("*"),
+    supabase.from("net_worth_snapshots").select("*"),
+    supabase.from("categories").select("*"),
+    supabase.from("financial_goals").select("*"),
+    supabase.from("recurring_transactions").select("*"),
+  ]);
+  return {
+    exported_at: new Date().toISOString(),
+    accounts: accounts.data || [],
+    transactions: transactions.data || [],
+    snapshots: snapshots.data || [],
+    categories: categories.data || [],
+    goals: goals.data || [],
+    recurring: recurring.data || [],
+  };
 }
