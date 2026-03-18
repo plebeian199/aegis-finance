@@ -524,6 +524,11 @@ export async function autoExecuteRecurringTransactions() {
     let nextDate = new Date(rt.next_execution_date);
     
     while (nextDate.toISOString().split('T')[0] <= currentDateStr) {
+      // Hard break before processing if we already crossed the strict bound
+      if (rt.end_date && nextDate.toISOString().split('T')[0] > rt.end_date) {
+        break;
+      }
+
       newTransactions.push({
         transaction_date: nextDate.toISOString().split('T')[0],
         amount: rt.amount,
@@ -552,16 +557,25 @@ export async function autoExecuteRecurringTransactions() {
       }
     }
 
+    // Check if the next schedule fundamentally breaks the boundaries
+    const isExceeded = rt.end_date && nextDate.toISOString().split('T')[0] > rt.end_date;
+
     updates.push({
       id: rt.id,
-      next_execution_date: nextDate.toISOString().split('T')[0]
+      next_execution_date: nextDate.toISOString().split('T')[0],
+      is_active: isExceeded ? false : rt.is_active
     });
   }
 
-  if (newTransactions.length > 0) {
-    await supabase.from("transactions").insert(newTransactions);
+  if (newTransactions.length > 0 || updates.length > 0) {
+    if (newTransactions.length > 0) {
+      await supabase.from("transactions").insert(newTransactions);
+    }
     for (const up of updates) {
-       await supabase.from("recurring_transactions").update({ next_execution_date: up.next_execution_date }).eq("id", up.id);
+       await supabase.from("recurring_transactions").update({ 
+         next_execution_date: up.next_execution_date,
+         is_active: up.is_active
+       }).eq("id", up.id);
     }
     revalidatePath("/");
   }

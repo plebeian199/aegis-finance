@@ -11,6 +11,9 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
   const [freq, setFreq] = useState("monthly");
   const [nextDate, setNextDate] = useState("");
   
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [endDate, setEndDate] = useState("");
+  
   const [catId, setCatId] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [destId, setDestId] = useState("");
@@ -26,12 +29,13 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
       transaction_type: type,
       frequency: freq,
       next_execution_date: nextDate,
+      end_date: hasEndDate && endDate ? endDate : null,
       category_id: catId || null,
       source_account_id: sourceId || null,
       destination_account_id: destId || null,
       is_active: true
     });
-    setDesc(""); setAmount(""); setNextDate("");
+    setDesc(""); setAmount(""); setNextDate(""); setEndDate(""); setHasEndDate(false);
     setLoading(false);
   };
 
@@ -99,9 +103,21 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-zinc-500 mb-1 block">Eksekusi Selanjutnya</label>
+                  <label className="text-[10px] text-zinc-500 mb-1 block">Mulai Eksekusi</label>
                   <input required type="date" value={nextDate} onChange={e => setNextDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs" style={{colorScheme:'dark'}}/>
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/5 border-dashed">
+                <label className="flex items-center gap-2 text-[10px] text-zinc-400 cursor-pointer mb-2">
+                  <input type="checkbox" checked={hasEndDate} onChange={() => setHasEndDate(!hasEndDate)} className="rounded border-white/10 bg-black/40 text-purple-500 focus:ring-0 focus:ring-offset-0" />
+                  Menggunakan Tanggal Batas Akhir
+                </label>
+                {hasEndDate && (
+                  <div>
+                    <input required type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs" style={{colorScheme:'dark'}}/>
+                  </div>
+                )}
               </div>
 
               <button disabled={loading} type="submit" className="w-full mt-4 bg-purple-500 text-purple-950 font-medium rounded-xl py-2.5 text-sm hover:bg-purple-400 transition-colors disabled:opacity-50">
@@ -157,6 +173,9 @@ export function AutomationTab({ recurring, accounts, categories }: { recurring: 
                           </td>
                           <td className="py-4 px-2">
                             <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest">{rt.frequency}</span>
+                            {rt.end_date && (
+                              <div className="text-[9px] text-rose-400/80 mt-1 uppercase tracking-wider font-medium">Batas: {new Date(rt.end_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric'})}</div>
+                            )}
                           </td>
                           <td className="py-4 px-2">
                             <span className="text-xs text-blue-300 font-mono flex items-center gap-1.5"><Clock size={12}/> {new Date(rt.next_execution_date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric'})}</span>
