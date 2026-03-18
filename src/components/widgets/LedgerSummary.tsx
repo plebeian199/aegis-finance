@@ -11,9 +11,10 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 type LedgerSummaryProps = {
   transactions: any[];
   categories?: any[];
+  liquidAssets?: number;
 };
 
-export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryProps) {
+export function LedgerSummary({ transactions, categories = [], liquidAssets = 0 }: LedgerSummaryProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -75,6 +76,24 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
     return Array.from(map.entries())
       .map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] }))
       .sort((a, b) => b.value - a.value);
+  }, [transactions, selectedMonth, year, month]);
+
+  // Last month's category data (for drift arrows)
+  const lastMonthCategoryMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const prevDate = new Date(parseInt(year), parseInt(month) - 2, 1);
+    const prevYear = prevDate.getFullYear();
+    const prevMonth = prevDate.getMonth() + 1;
+    transactions.forEach(t => {
+      if (!t.transaction_date) return;
+      const d = new Date(t.transaction_date);
+      if (d.getFullYear() === prevYear && (d.getMonth() + 1) === prevMonth) {
+        if (t.transaction_type === 'expense' && t.category) {
+          map.set(t.category.name, (map.get(t.category.name) || 0) + Number(t.amount));
+        }
+      }
+    });
+    return map;
   }, [transactions, selectedMonth, year, month]);
 
   const barData = [
@@ -280,7 +299,23 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: data.color }}></div>
                     <span className="text-xs text-zinc-400 truncate" title={data.name}>{data.name}</span>
                   </div>
-                  <span className="font-mono text-xs text-white shrink-0">{(data.value / expense * 100).toFixed(1)}%</span>
+                  <div className="flex items-center gap-1.5">
+                    {(() => {
+                      const lastVal = lastMonthCategoryMap.get(data.name);
+                      if (lastVal && lastVal > 0) {
+                        const pctChange = ((data.value - lastVal) / lastVal * 100);
+                        if (Math.abs(pctChange) >= 1) {
+                          return (
+                            <span className={cn("text-[9px] font-mono font-medium", pctChange > 0 ? "text-rose-400" : "text-emerald-400")}>
+                              {pctChange > 0 ? '↑' : '↓'}{Math.abs(pctChange).toFixed(0)}%
+                            </span>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                    <span className="font-mono text-xs text-white shrink-0">{(data.value / expense * 100).toFixed(1)}%</span>
+                  </div>
                </div>
              ))}
           </div>
@@ -320,6 +355,37 @@ export function LedgerSummary({ transactions, categories = [] }: LedgerSummaryPr
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Cash Flow Forecast */}
+      {(() => {
+        const last3 = trendData.slice(-3);
+        const avgIncome = last3.reduce((s, m) => s + m.income, 0) / Math.max(last3.filter(m => m.income > 0 || m.expense > 0).length, 1);
+        const avgExpense = last3.reduce((s, m) => s + m.expense, 0) / Math.max(last3.filter(m => m.income > 0 || m.expense > 0).length, 1);
+        const monthlyNet = avgIncome - avgExpense;
+        const forecast3 = liquidAssets + (monthlyNet * 3);
+        if (avgIncome === 0 && avgExpense === 0) return null;
+        return (
+          <div className="bg-black/20 rounded-2xl p-5 border border-white/5 mb-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="shrink-0 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <TrendingUp size={18} className="text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-zinc-300 font-medium">Proyeksi Kas 3 Bulan</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Berdasarkan rata-rata arus kas 3 bulan terakhir, posisi kas likuid Anda dalam 3 bulan diproyeksikan menjadi:
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={cn("text-xl font-mono font-medium", forecast3 >= liquidAssets ? "text-emerald-400" : "text-rose-400")}>
+                {formatRp(Math.round(forecast3))}
+              </p>
+              <p className="text-[10px] text-zinc-600 font-mono">
+                {monthlyNet >= 0 ? '+' : ''}{formatRp(Math.round(monthlyNet))}/bln
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Budget Progress Bars */}
       <div className="bg-black/20 rounded-3xl p-6 md:p-8 border border-white/5">

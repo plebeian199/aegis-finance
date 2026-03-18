@@ -74,6 +74,36 @@ export default async function Home() {
     }
   });
 
+  // Health Score Calculations
+  let monthlyIncome = 0;
+  let monthlyExpense = 0;
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  allTransactions.forEach(t => {
+    if (!t.transaction_date) return;
+    const d = new Date(t.transaction_date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (key === thisMonth) {
+      if (t.transaction_type === 'income') monthlyIncome += Number(t.amount);
+      else if (t.transaction_type === 'expense') monthlyExpense += Number(t.amount);
+    }
+  });
+  const totalAssets = liquidAssets + marketableAssets + illiquidAssets;
+  const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome * 100) : 0;
+  const emergencyMonths = burnRate > 0 ? liquidAssets / burnRate : 99;
+  const debtToAsset = totalAssets > 0 ? (totalLiabilitiesSum / totalAssets * 100) : 0;
+  const debtToIncome = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome * 100) : 0;
+  const goalsData2 = goalsData || [];
+  const goalProgress = goalsData2.length > 0 
+    ? goalsData2.reduce((sum: number, g: any) => {
+        const mapped = accountsData.filter((a: any) => a.goal_id === g.id);
+        const saved = mapped.reduce((s: number, a: any) => s + Number(a.current_balance), 0);
+        return sum + Math.min((saved / g.target_amount) * 100, 100);
+      }, 0) / goalsData2.length
+    : 50; // neutral if no goals
+
+  const healthScoreData = { savingsRate, emergencyMonths, debtToAsset, debtToIncome, goalProgress };
+
   return (
     <main className="min-h-screen bg-black text-white selection:bg-blue-500/30">
       {/* Abstract Background Elements */}
@@ -109,13 +139,15 @@ export default async function Home() {
                totalLiabilitiesSum={totalLiabilitiesSum}
                accountsData={accountsData}
                burnRate={burnRate}
-             />
+              healthScoreData={healthScoreData}
+            />
            }
            ledgerTab={
              <LedgerTab 
                accounts={accountsData} 
                categories={categoriesData} 
-               transactions={allTransactions} 
+               transactions={allTransactions}
+               liquidAssets={liquidAssets}
              />
            }
            clearinghouseTab={

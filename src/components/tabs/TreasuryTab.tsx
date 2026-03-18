@@ -5,8 +5,10 @@ import { AssetLiabilityForm } from "@/components/forms/AssetLiabilityForm";
 import { AssetTable } from "@/components/tables/AssetTable";
 import { ZakatCalculator } from "@/components/widgets/ZakatCalculator";
 import { SeedSnapshotsButton } from "@/components/widgets/SeedSnapshotsButton";
+import { FinancialHealthScore } from "@/components/widgets/FinancialHealthScore";
 import { getFullBackup } from "@/app/actions";
 import { Download } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 type TreasuryTabProps = {
   currentNetWorth: number;
@@ -17,7 +19,16 @@ type TreasuryTabProps = {
   totalLiabilitiesSum: number;
   accountsData: any[];
   burnRate: number;
+  healthScoreData: {
+    savingsRate: number;
+    emergencyMonths: number;
+    debtToAsset: number;
+    debtToIncome: number;
+    goalProgress: number;
+  };
 };
+
+const ALLOC_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
 
 export function TreasuryTab({
   currentNetWorth,
@@ -27,7 +38,8 @@ export function TreasuryTab({
   illiquidAssets,
   totalLiabilitiesSum,
   accountsData,
-  burnRate
+  burnRate,
+  healthScoreData
 }: TreasuryTabProps) {
   
   const formatShort = (val: number) => {
@@ -48,6 +60,27 @@ export function TreasuryTab({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // Asset Allocation data
+  const totalGrossAssets = liquidAssets + marketableAssets + illiquidAssets;
+  const allocationData = [
+    { name: 'Kas & Setara', value: liquidAssets, color: ALLOC_COLORS[0] },
+    { name: 'Sekuritas', value: marketableAssets, color: ALLOC_COLORS[1] },
+    { name: 'Aset Ilikuid', value: illiquidAssets, color: ALLOC_COLORS[2] },
+  ].filter(d => d.value > 0);
+
+  const AllocTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-black/90 p-3 border border-white/10 rounded-lg shadow-xl backdrop-blur-xl">
+          <p className="text-zinc-300 text-xs mb-1">{payload[0].name}</p>
+          <p className="text-white font-mono font-medium">{formatShort(payload[0].value)}</p>
+          <p className="text-zinc-500 text-[10px]">{totalGrossAssets > 0 ? ((payload[0].value / totalGrossAssets) * 100).toFixed(1) : 0}%</p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -87,7 +120,40 @@ export function TreasuryTab({
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Asset Allocation + Burn Rate Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Asset Allocation Donut */}
+            <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 backdrop-blur-md">
+              <p className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider mb-3">Alokasi Aset</p>
+              {totalGrossAssets > 0 ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={allocationData} cx="50%" cy="50%" innerRadius={25} outerRadius={40} paddingAngle={3} dataKey="value" stroke="none">
+                          {allocationData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<AllocTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-1.5 min-w-0">
+                    {allocationData.map((d, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }}></div>
+                        <span className="text-[10px] text-zinc-400 truncate">{d.name}</span>
+                        <span className="text-[10px] font-mono text-zinc-500 ml-auto">{((d.value / totalGrossAssets) * 100).toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-zinc-600 text-xs italic">Belum ada aset.</p>
+              )}
+            </div>
+
             <div className="bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 rounded-2xl p-6 relative overflow-hidden">
                <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/20 blur-3xl -z-10 rounded-full"></div>
                <p className="text-red-400 text-xs font-medium uppercase tracking-wider mb-2">Absolute Burn Rate (30 Hari)</p>
@@ -110,6 +176,10 @@ export function TreasuryTab({
         {/* Form Column */}
         <div className="space-y-4">
           <AssetLiabilityForm accounts={accountsData as any} />
+          
+          {/* Financial Health Score */}
+          <FinancialHealthScore {...healthScoreData} />
+          
           <ZakatCalculator liquidAssets={liquidAssets} />
           
           {/* Data Backup */}
